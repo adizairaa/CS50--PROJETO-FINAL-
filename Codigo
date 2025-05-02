@@ -1,0 +1,69 @@
+#include <stdio.h>
+#include <sqlite3.h>
+
+// Função para exibir erros (apenas para debug)
+void check_sqlite(int rc, char *msg) {
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Erro: %s: %s\n", msg, sqlite3_errstr(rc));
+    }
+}
+
+// Função para contar total de reservas
+void total_reservas(sqlite3 *db) {
+    const char *sql = "SELECT COUNT(*) FROM reservas;";
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK && sqlite3_step(stmt) == SQLITE_ROW) {
+        int total = sqlite3_column_int(stmt, 0);
+        printf("Total de reservas: %d\n", total);
+    }
+    sqlite3_finalize(stmt);
+}
+
+// Função para calcular média da receita de reservas confirmadas
+void receita_media(sqlite3 *db) {
+    const char *sql = "SELECT AVG(valor) FROM reservas WHERE status = 'confirmada';";
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK && sqlite3_step(stmt) == SQLITE_ROW) {
+        double media = sqlite3_column_double(stmt, 0);
+        printf("Receita média das reservas confirmadas: %.2f\n", media);
+    }
+    sqlite3_finalize(stmt);
+}
+
+// Função para exibir reservas por mês
+void reservas_por_mes(sqlite3 *db) {
+    const char *sql = "SELECT strftime('%Y-%m', data) AS mes, COUNT(*) FROM reservas GROUP BY mes;";
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    printf("Reservas por mês:\n");
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const unsigned char *mes = sqlite3_column_text(stmt, 0);
+        int count = sqlite3_column_int(stmt, 1);
+        printf(" - %s: %d reservas\n", mes, count);
+    }
+    sqlite3_finalize(stmt);
+}
+
+int main() {
+    sqlite3 *db;
+    int rc = sqlite3_open("hotel.db", &db);
+
+    if (rc) {
+        fprintf(stderr, "Não foi possível abrir o banco de dados: %s\n", sqlite3_errmsg(db));
+        return 1;
+    } else {
+        printf("Conectado ao banco de dados com sucesso!\n");
+    }
+
+    total_reservas(db);
+    receita_media(db);
+    reservas_por_mes(db);
+
+    sqlite3_close(db);
+    return 0;
+}
